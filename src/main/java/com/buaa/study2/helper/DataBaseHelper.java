@@ -1,6 +1,8 @@
 package com.buaa.study2.helper;
 
+import com.buaa.study2.utils.CollectionUtil;
 import com.buaa.study2.utils.PropUtils;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.BeanHandler;
 import org.apache.commons.dbutils.handlers.BeanListHandler;
@@ -11,7 +13,9 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 
@@ -20,30 +24,35 @@ import java.util.Properties;
  */
 public final class DataBaseHelper {
     private static final Logger LOGGER= LoggerFactory.getLogger(DataBaseHelper.class);
-    private static final String DRIVER;
-    private static final String URL;
-    private static final String USERNAME;
-    private static final String PASSWORD;
+//    private static final String DRIVER;
+//    private static final String URL;
+//    private static final String USERNAME;
+//    private static final String PASSWORD;
 
-    private static final ThreadLocal<Connection> CONNECTION_HOLDER=new ThreadLocal<Connection>();
-
+    private static final ThreadLocal<Connection> CONNECTION_HOLDER;
+    private static final QueryRunner QUERY_RUNNER;
+    private static final BasicDataSource DATA_SOURCE;
     static {
+        CONNECTION_HOLDER=new ThreadLocal<Connection>();
+        QUERY_RUNNER=new QueryRunner();
+
         Properties properties= PropUtils.loadProps("config.properties");
-        DRIVER=properties.getProperty("jdbc.driver");
-        URL=properties.getProperty("jdbc.url");
-        USERNAME=properties.getProperty("jdbc.username");
-        PASSWORD=properties.getProperty("jdbc.password");
-        try{
-            Class.forName(DRIVER);
-        }catch (ClassNotFoundException e){
-            LOGGER.error("can not load file",e);
-        }
+        String driver=properties.getProperty("jdbc.driver");
+        String url=properties.getProperty("jdbc.url");
+        String username=properties.getProperty("jdbc.username");
+        String password=properties.getProperty("jdbc.password");
+
+        DATA_SOURCE=new BasicDataSource();
+        DATA_SOURCE.setDriverClassName(driver);
+        DATA_SOURCE.setUrl(url);
+        DATA_SOURCE.setUsername(username);
+        DATA_SOURCE.setPassword(password);
     }
     public static Connection getConnection(){
         Connection conn=CONNECTION_HOLDER.get();
        if(conn==null){
            try {
-               conn= DriverManager.getConnection(URL,USERNAME,PASSWORD);
+               conn= DATA_SOURCE.getConnection();
            }catch (SQLException e){
                LOGGER.error("connect failure",e);
                throw new RuntimeException(e);
@@ -53,20 +62,7 @@ public final class DataBaseHelper {
        }
         return conn;
     }
-    public static void closeConnection(){
-        Connection conn=CONNECTION_HOLDER.get();
-        if(conn!=null){
-            try {
-                conn.close();
-            }catch (SQLException e){
-                LOGGER.error("close connect failure",e);
-                throw new RuntimeException(e);
-            }finally {
-                CONNECTION_HOLDER.remove();
-            }
-        }
-    }
-    private static final QueryRunner QUERY_RUNNER=new QueryRunner();
+
 
 
     public static <T> List<T> queryEntityList(Class<T> entityClass,String sql){
@@ -78,8 +74,6 @@ public final class DataBaseHelper {
         }catch (SQLException e){
             LOGGER.error("query List error",e);
             throw new RuntimeException(e);
-        }finally {
-            closeConnection();
         }
         return entityList;
     }
@@ -92,24 +86,66 @@ public final class DataBaseHelper {
         }catch (SQLException e){
             LOGGER.error("query  error",e);
             throw new RuntimeException(e);
-        }finally {
-            closeConnection();
         }
         return entity;
     }
 
-    public static int updateEntity(String sql){
+    public static int executeUpdateEntity(String sql,Object... params){
         int rows;
         Connection conn=getConnection();
         try{
-            rows=QUERY_RUNNER.update(conn,sql);
+            rows=QUERY_RUNNER.update(conn,sql,params);
 
         }catch (SQLException e){
             LOGGER.error("update  error",e);
             throw new RuntimeException(e);
-        }finally {
-            closeConnection();
         }
         return rows;
+    }
+
+    public static <T> boolean insertEntity(Class<T> entityClass, Map<String,Object> fieldMap){
+       if(CollectionUtil.isEmpty(fieldMap)){
+           LOGGER.error("insert an empty entity");
+           return false;
+       }
+        String sql="insert into"+getTableName(entityClass);
+        StringBuilder clumns=new StringBuilder("(");
+        StringBuilder values=new StringBuilder("(");
+        for(String fieldName:fieldMap.keySet()){
+            clumns.append(fieldName).append(",");
+            values.append("?,");
+        }
+        clumns.replace(clumns.lastIndexOf(","),clumns.length(),")");
+        values.replace(values.lastIndexOf(","),values.length(),")");
+        sql+=clumns+"VALUES"+values;
+        Object[] params=fieldMap.values().toArray();
+        return executeUpdateEntity(sql,params)==1;
+    }
+
+    public static <T> boolean updateEntity(Class<T> entityClass, Long id,Map<String,Object> fieldMap){
+        if(CollectionUtil.isEmpty(fieldMap)){
+            LOGGER.error("update an empty entity");
+            return false;
+        }
+        String sql="UPDATE"+getTableName(entityClass)+"SET";
+        StringBuilder clumns=new StringBuilder("(");
+        for(String fieldName:fieldMap.keySet()){
+            clumns.append(fieldName).append("=?,");
+        }
+        sql+=clumns.substring(0,clumns.lastIndexOf(","))+"where id=?";
+        List<Object> paramList=new ArrayList<Object>();
+        paramList.addAll(fieldMap.values());
+        paramList.add(id);
+        Object[] params=paramList.toArray();
+        return executeUpdateEntity(sql,params)==1;
+    }
+
+    public static <T> boolean deleteEntity(Class<T> entityClass, Long id){
+        String sql="delete from"+getTableName(entityClass)+"where id=?";
+        return executeUpdateEntity(sql,id)==1;
+    }
+
+    private static String getTableName(Class<?> entityClass){
+        return entityClass.getSimpleName();
     }
 }

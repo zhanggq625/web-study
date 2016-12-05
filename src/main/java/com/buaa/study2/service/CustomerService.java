@@ -20,15 +20,16 @@ public class CustomerService {
         return DataBaseHelper.queryEntityList(Customer.class,sql);
     }
     public Customer getCustomer(int id){
-        return null;
+        String sql="SELECT * FROM customer where id="+id;
+        return DataBaseHelper.queryEntity(Customer.class,sql);
     }
     public boolean creatCustomer(Map<String,Object> fieldMap){
-        return false;
+        return DataBaseHelper.insertEntity(Customer.class,fieldMap);
     }
     public boolean updateCustomer(long id,Map<String,Object> fieldMap){
-        return false;
+        return DataBaseHelper.updateEntity(Customer.class,id,fieldMap);
     }
     public boolean deleteCustomer(long id){
-        return false;
+        return DataBaseHelper.deleteEntity(Customer.class,id);
     }
 }

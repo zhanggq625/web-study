@@ -19,7 +19,6 @@ public class PropUtils {
         try {
             is = Thread.currentThread().getContextClassLoader().getResourceAsStream(fileName);
             if (is == null) {
-
                 throw new FileNotFoundException(fileName + "file is not found");
             }
             props = new Properties();

@@ -27,7 +27,10 @@
             <td>${customer.contact}</td>
             <td>${customer.telephone}</td>
             <td>${customer.email}</td>
-            <td>delete</td>
+            <td>
+                <a href="${BASE}/customer_edit?id=${customer.id}">编辑</a>
+                <a href="${BASE}/customer_delete?id=${customer.id}">删除</a>
+            </td>
         </tr>
     </c:forEach>
 </table>
