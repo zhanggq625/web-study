@@ -4,6 +4,7 @@ import com.mysql.cj.core.util.StringUtils;
 
 /**
  * Created by zgq on 2016/12/3.
+ * g各种类型转换
  */
 public final class CastUtil {
     public static String castString(Object obj){

@@ -40,12 +40,6 @@ public final class DataBaseHelper {
         }
     }
     public static Connection getConnection(){
-       /* Connection conn=null;
-        try {
-            conn= DriverManager.getConnection(URL,USERNAME,PASSWORD);
-        }catch (SQLException e){
-            LOGGER.error("connect failure",e);
-        }*/
         Connection conn=CONNECTION_HOLDER.get();
        if(conn==null){
            try {
@@ -60,13 +54,6 @@ public final class DataBaseHelper {
         return conn;
     }
     public static void closeConnection(){
-       /* if(conn!=null){
-            try {
-                conn.close();
-            }catch (SQLException e){
-                LOGGER.error("close connect failure",e);
-            }
-        }*/
         Connection conn=CONNECTION_HOLDER.get();
         if(conn!=null){
             try {
@@ -109,5 +96,20 @@ public final class DataBaseHelper {
             closeConnection();
         }
         return entity;
+    }
+
+    public static int updateEntity(String sql){
+        int rows;
+        Connection conn=getConnection();
+        try{
+            rows=QUERY_RUNNER.update(conn,sql);
+
+        }catch (SQLException e){
+            LOGGER.error("update  error",e);
+            throw new RuntimeException(e);
+        }finally {
+            closeConnection();
+        }
+        return rows;
     }
 }
